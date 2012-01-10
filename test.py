@@ -13,11 +13,23 @@ expected_dict = {'service_name': 'service',
 class TestCredential(unittest.TestCase):
 
 
-    def test_creds(self):
-        global cred
-        global expected_dict
- 
+    def test_dict(self):
         self.assertEqual(cred.json_dict, expected_dict)
+
+    def test_str(self):
+        self.assertEqual(str(cred), "service:user")
+
+class TestGPG(unittest.TestCase):
+
+    def test_gpg(self):
+        msg = "foobaz!"
+        filename = "temp"
+        password = "pass123"
+
+        GPGCommunicator.encrypt(msg, filename, password)
+        out = GPGCommunicator.decrypt(filename, password)
+
+        self.assertEqual(msg, out)
                          
 class TestSerializing(unittest.TestCase):
 
@@ -40,7 +52,6 @@ class TestSerializing(unittest.TestCase):
         self.assertTrue(self.serializer.keyfile_writable())
 
     def _test_load(self):
-        global expected_dict
         cred_list = self.serializer.load()
         eq = self.assertEqual
 
@@ -52,12 +63,10 @@ class TestSerializing(unittest.TestCase):
         cred_dict = self.serializer.load_dict()
         eq = self.assertEqual
 
-        eq('pin: 1111', cred_dict['s2'].other_info)
-        eq('user', cred_dict['service'].username)
+        eq('pin: 1111', cred_dict[str(cred2)].other_info)
+        eq('user', cred_dict[str(cred)].username)
  
     def test_insert(self):
-        global cred
-
         self.assertEqual(0, len(self.serializer.load()))
 
         self.assertTrue(self.serializer.insert(cred))
