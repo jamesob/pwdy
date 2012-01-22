@@ -1,7 +1,9 @@
 # pwdy
 
 Store your passwords in an OS-independent way with security that's Good
-Enough&#8482;. Accessible by a fully-featured command-line interface.
+Enough. Accessible by a fully-featured command-line interface. 
+
+Not stable yet.
 
 ## Usage
 
