@@ -1,7 +1,7 @@
 # pwdy
 
-A reasonably secure way to store your passwords in an OS-independent way.
-Accessible by a fully-featured command-line interface.
+Store your passwords in an OS-independent way with security that's Good
+Enough&#8482;. Accessible by a fully-featured command-line interface.
 
 ## Usage
 
