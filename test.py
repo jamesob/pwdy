@@ -21,24 +21,41 @@ class TestCredential(unittest.TestCase):
 
 class TestGPG(unittest.TestCase):
 
+    filename = "temp"
+    msg = "foobaz!"
+
+    def tearDown(self):
+        os.system("rm %s" % self.filename)
+
     def test_gpg(self):
-        msg = "foobaz!"
-        filename = "temp"
-        password = "pass123"
 
-        GPGCommunicator.encrypt(msg, filename, password)
-        out = GPGCommunicator.decrypt(filename, password)
+        GPGCommunicator.encrypt(self.msg, self.filename, "pass123")
+        out = GPGCommunicator.decrypt(self.filename, "pass123")
 
-        self.assertEqual(msg, out)
+        self.assertEqual(self.msg, out)
+    
+    def test_bad_pass(self):
+
+        GPGCommunicator.encrypt(self.msg, self.filename, "pass123")
+
+        def fail():
+            GPGCommunicator.decrypt(self.filename, "wrong_pass")
+         
+        self.assertRaises(GPGCommunicator.KeyfileDecodeError,
+                          fail)
+     
                          
 class TestSerializing(unittest.TestCase):
 
+    data_location = "./test-passwds.gpg"
 
     def setUp(self):
-        self.data_location = "./test-passwds.gpg"
         self.serializer = CredentialSerializer(self.data_location,
                                                passphrase="foobar")
         self.cred_list = [cred, cred2]
+
+    def tearDown(self):
+        os.system("rm %" % self.data_location)
 
     def test_dump_load(self):
         self._test_dump()
@@ -48,8 +65,7 @@ class TestSerializing(unittest.TestCase):
     def _test_dump(self):
         self.serializer.dump(self.cred_list)
 
-        self.assertTrue(self.serializer.keyfile_exists())
-        self.assertTrue(self.serializer.keyfile_writable())
+        self.assertTrue(self.serializer._keyfile_exists())
 
     def _test_load(self):
         cred_list = self.serializer.load()

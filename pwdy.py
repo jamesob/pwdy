@@ -2,6 +2,7 @@
 
 import subprocess as subp
 import os
+import sys
 import json
 import argparse
 from getpass import getpass
@@ -40,8 +41,7 @@ class CredentialSerializer(object):
         self.keyfile_loc = dest
         self.passphrase = passphrase
 
-        assert self.keyfile_exists(), \
-               "Specified keyfile '%s' doesn't exist." % dest
+        self.create_keyfile()
                     
     def dump(self, creds):
         """Dump a list or dict of `Credential`s to the filesystem.
@@ -61,10 +61,15 @@ class CredentialSerializer(object):
         
         Optionally, use a passphrase to do so (mostly for testing).
         """
-        if not self.keyfile_exists():
+        if not self._keyfile_exists():
             return self.handle_no_store()
 
-        json_str = GPGCommunicator.decrypt(self.keyfile_loc, self.passphrase)
+        try:
+            json_str = GPGCommunicator.decrypt(self.keyfile_loc, self.passphrase)
+        except GPGCommunicator.KeyfileDecodeError as e:
+            print("%s Bad password?" % e.value)
+            exit(1)
+
         dict_list = json.loads(json_str)
 
         return [Credential(**c_dict) for c_dict in dict_list]
@@ -98,14 +103,15 @@ class CredentialSerializer(object):
         return os.path.exists(self.keyfile_loc)
 
     def create_keyfile(self):
-        if not self.keyfile_exists():
+        if not self._keyfile_exists():
             self.dump([])
 
-class GPGCommunicator(object):
+class Shell(object):
+    """A utility class for dealing with shell communication."""
 
 
     @staticmethod
-    def _pipe(cmd, in_pipe=None):
+    def pipe(cmd, in_pipe=None):
         """Execute `cmd`, piping in `in_pipe` and return a tuple containing
         (stdout, stderr, returncode)."""
         p = subp.Popen(cmd, 
@@ -114,6 +120,14 @@ class GPGCommunicator(object):
                        stdin=subp.PIPE)
 
         return p.communicate(in_pipe) + (p.returncode,)
+                  
+
+class GPGCommunicator(object):
+     
+
+    class KeyfileDecodeError(Exception):
+        def __init__(self, value):
+            self.value = value
 
     @staticmethod
     def _add_passphrase(gpg_cmd_list, passphrase):
@@ -137,8 +151,8 @@ class GPGCommunicator(object):
         if passphrase:
             gpg_cmd = GPGCommunicator._add_passphrase(gpg_cmd, passphrase)
 
-        (stdout, stderr, retcode) = GPGCommunicator._pipe(gpg_cmd,
-                                                          b64encode(msg))
+        (stdout, stderr, retcode) = Shell.pipe(gpg_cmd, b64encode(msg))
+
         return True if retcode == 0 else False
      
     @staticmethod
@@ -153,11 +167,14 @@ class GPGCommunicator(object):
 
         gpg_cmd += ['-d', keyfile]
 
-        (stdout, stderr, retcode) = GPGCommunicator._pipe(gpg_cmd)
+        (stdout, stderr, retcode) = Shell.pipe(gpg_cmd)
         
         if retcode == 0:
             return b64decode(stdout)
         else:
+            err = "Keyfile couldn't be decoded (gpg return code: %d)." % retcode
+            raise GPGCommunicator.KeyfileDecodeError(err)
+
             return ""
 
 class InteractionUtility(object):
@@ -217,13 +234,13 @@ class InteractionUtility(object):
     @staticmethod
     def init_keyfile(keyfile_loc):
         """If no keyfile exists, create one."""
+        
         y_n = raw_input("No keyfile exists at '%s'. Create one? [y/n]: " \
                         % keyfile_loc)
 
         if y_n[0].lower() == 'y':
             pphrase = InteractionUtility.new_pass_confirm("Keyfile password")
             s = CredentialSerializer(keyfile_loc, passphrase=pphrase)
-            s.create_keyfile()
             return True
         else:
             return False
@@ -240,6 +257,12 @@ def parser():
                         dest='operation',
                         help='List the credentials.')
                                                       
+    parser.add_argument('-g', '--get-cred',
+                        action='store',
+                        default=None,
+                        dest='cred_id',
+                        help='Retrieve a credential, put it on the clipboard, and print other information.')
+                                                       
     parser.add_argument('-a', '--add-cred',
                         action='store_const', const='add_cred',
                         default=False,
@@ -280,6 +303,27 @@ def interpret_args(ns, keyfile):
 
         if success is False:
             print "Failed to add new credential."
+
+    def _get_cred(serializer, cred_id):
+        """Print a credential's other_info and copy the password to the
+        clipboard."""
+        cred = serializer.load_dict()[cred_id]
+
+        clipboard_progs = {
+            "darwin": "pbcopy",
+            "linux2": "xclip",
+        }
+
+        to_clip = clipboard_progs[sys.platform]
+
+        print("Retrieved credential for %s." % cred_id)
+        print("  Username: %s" % cred.username)
+
+        if cred.other_info:
+            print('  Other info: "%s"' % cred.other_info)
+
+        Shell.pipe(to_clip, cred.password)
+        print("  Password copied to clipboard.")
                       
     def _list_creds(serializer):
         """List the credentials currently tracked by pwdy."""
@@ -314,6 +358,8 @@ def interpret_args(ns, keyfile):
         _list_creds(serializer)
     elif ns.operation == 'add_cred':
         _add_new_cred(serializer, new_cred)
+    elif ns.cred_id is not None:
+        _get_cred(serializer, ns.cred_id)
     else:
         print "No valid operation specified."
 
