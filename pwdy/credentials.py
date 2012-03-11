@@ -19,6 +19,12 @@ class Credential(object):
         """Return a json-friendly dict representation of this credential."""
         return self.__dict__
 
+    def __eq__(self, other):
+        if other.__class__ is Credential and self.json_dict == other.json_dict:
+            return True
+        else:
+            return False
+
     def __str__(self):
         return "%s:%s" % (self.service_name, self.username)
 
@@ -90,6 +96,18 @@ class CredentialSerializer(object):
             existing_cred_dict[str(new_cred)] = new_cred
             self.dump(existing_cred_dict)
             return True
+
+    def delete(self, cred_id):
+        """Delete an existing credential with id `cred_id`; return the cred
+        deleted, or False if `cred_id` wasn't found."""
+
+        cred_dict = self.load_dict()
+        ret_val = cred_dict.pop(cred_id, False)
+
+        if ret_val:
+            self.dump(cred_dict)
+
+        return ret_val
 
     def _credfile_exists(self):
         """Return whether or not the credentials file currently exists."""

@@ -83,20 +83,38 @@ class TestSerializing(unittest.TestCase):
         eq('pin: 1111', cred_dict[str(cred2)].other_info)
         eq('user', cred_dict[str(cred)].username)
 
-    def test_insert(self):
-        self.assertEqual(0, len(self.serializer.load()))
+    def test_ops(self):
+        self._test_insert()
+        self._test_delete()
+
+    def _test_insert(self):
+        self._assert_num_creds(0)
 
         self.assertTrue(self.serializer.insert(cred))
         self.assertFalse(self.serializer.insert(cred))
-        self.assertEqual(1, len(self.serializer.load()))
+        self._assert_num_creds(1)
 
         new_cred = Credential('gmail', 'joe', '123')
         self.assertTrue(self.serializer.insert(new_cred))
-        self.assertEqual(2, len(self.serializer.load()))
+        self._assert_num_creds(2)
 
         new_cred.service_name = 'hotmail'
         self.assertTrue(self.serializer.insert(new_cred))
-        self.assertEqual(3, len(self.serializer.load()))
+        self._assert_num_creds(3)
+    
+    def _test_delete(self):
+        # testing preconditions
+        self._assert_num_creds(3)
+        
+
+        self.assertEqual(cred, self.serializer.delete(str(cred)))
+        self._assert_num_creds(2)
+        self.assertFalse(self.serializer.delete(str(cred)))
+        self._assert_num_creds(2)
+
+    def _assert_num_creds(self, n):
+        return self.assertEqual(n, len(self.serializer.load()))
+        
 
 if __name__ == '__main__':
     unittest.main()
