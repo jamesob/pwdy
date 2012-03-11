@@ -1,6 +1,8 @@
 import unittest
 import os
 from pwdy import *
+from pwdy.credentials import Credential, CredentialSerializer
+from pwdy.gpg import GPGCommunicator
 
 cred = Credential('service', 'user', 'pass', 'hey other info')
 cred2 = Credential('s2', 'joe', 'p123', 'pin: 1111')
@@ -10,14 +12,15 @@ expected_dict = {'service_name': 'service',
                  'password': 'pass',
                  'other_info': 'hey other info'}
 
-class TestCredential(unittest.TestCase):
 
+class TestCredential(unittest.TestCase):
 
     def test_dict(self):
         self.assertEqual(cred.json_dict, expected_dict)
 
     def test_str(self):
         self.assertEqual(str(cred), "service:user")
+
 
 class TestGPG(unittest.TestCase):
 
@@ -28,23 +31,21 @@ class TestGPG(unittest.TestCase):
         os.system("rm %s" % self.filename)
 
     def test_gpg(self):
-
         GPGCommunicator.encrypt(self.msg, self.filename, "pass123")
         out = GPGCommunicator.decrypt(self.filename, "pass123")
 
         self.assertEqual(self.msg, out)
-    
-    def test_bad_pass(self):
 
+    def test_bad_pass(self):
         GPGCommunicator.encrypt(self.msg, self.filename, "pass123")
 
         def fail():
             GPGCommunicator.decrypt(self.filename, "wrong_pass")
-         
+
         self.assertRaises(GPGCommunicator.KeyfileDecodeError,
                           fail)
-     
-                         
+
+
 class TestSerializing(unittest.TestCase):
 
     data_location = "./test-passwds.gpg"
@@ -55,7 +56,7 @@ class TestSerializing(unittest.TestCase):
         self.cred_list = [cred, cred2]
 
     def tearDown(self):
-        os.system("rm %" % self.data_location)
+        os.system("rm %s" % self.data_location)
 
     def test_dump_load(self):
         self._test_dump()
@@ -65,7 +66,7 @@ class TestSerializing(unittest.TestCase):
     def _test_dump(self):
         self.serializer.dump(self.cred_list)
 
-        self.assertTrue(self.serializer._keyfile_exists())
+        self.assertTrue(self.serializer._credfile_exists())
 
     def _test_load(self):
         cred_list = self.serializer.load()
@@ -81,7 +82,7 @@ class TestSerializing(unittest.TestCase):
 
         eq('pin: 1111', cred_dict[str(cred2)].other_info)
         eq('user', cred_dict[str(cred)].username)
- 
+
     def test_insert(self):
         self.assertEqual(0, len(self.serializer.load()))
 
@@ -96,10 +97,6 @@ class TestSerializing(unittest.TestCase):
         new_cred.service_name = 'hotmail'
         self.assertTrue(self.serializer.insert(new_cred))
         self.assertEqual(3, len(self.serializer.load()))
- 
-    def tearDown(self):
-        os.remove(self.data_location)
 
 if __name__ == '__main__':
     unittest.main()
-
