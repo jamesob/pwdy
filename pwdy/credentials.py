@@ -1,10 +1,19 @@
+#!/usr/bin/python
+
+"""
+Contains the data-model for Credentials and a strategy for persisting 
+them to the filesystem.
+"""
+
+
 import json
 import os
-from gpg import *
+from gpg import GPGCommunicator
 
 
 class Credential(object):
     """A credential to be stored and later accessed.
+
     Usually instantiated from an imported JSON file for temporary usage.
     """
 

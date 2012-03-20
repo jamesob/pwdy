@@ -1,3 +1,10 @@
+#!/usr/bin/python
+
+"""
+Contains code for communicating with GPG via subprocess. For use in the
+CredentialSerializer class.
+"""
+
 from utils import Shell
 from base64 import b64encode, b64decode
 

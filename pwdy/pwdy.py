@@ -1,8 +1,16 @@
 #!/usr/bin/python
 
+"""
+pwdy
+~~~~
+
+Contains a definition of the CLI and interaction-related utility functions.
+"""
+
 import os
 import sys
 from credentials import Credential, CredentialSerializer
+from utils import Shell
 from argh import *
 from getpass import getpass
 
@@ -161,6 +169,18 @@ def get(args):
     yield "  Password copied to clipboard."
 
 
+@arg('cred_id', help='A string of other information when adding a cred.')
+def rm(args):
+    """Remove a credential from the credential file."""
+    serializer = make_serializer()
+    cred = serializer.delete(args.cred_id)
+
+    if cred:
+        yield "Deleted credential '%s'." % str(cred)
+    else:
+        yield "Couldn't find credential '%s'." % args.cred_id
+
+
 def graceful_exit(signal, frame):
     print
     exit()
@@ -171,6 +191,6 @@ if __name__ == '__main__':
     signal.signal(signal.SIGINT, graceful_exit)
 
     p = ArghParser(description="A password-storage utility.")
-    cmds = [add, ls, get, update]
+    cmds = [add, ls, get, rm, update]
     p.add_commands(cmds)
     p.dispatch()
